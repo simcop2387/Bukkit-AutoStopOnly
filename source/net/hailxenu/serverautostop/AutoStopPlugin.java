@@ -15,10 +15,16 @@ import org.bukkit.event.Event.Type;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import com.nijiko.permissions.PermissionHandler;
+import com.nijikokun.bukkit.Permissions.Permissions;
+
 public class AutoStopPlugin extends JavaPlugin
 {
     public Logger Log = Logger.getLogger("Minecraft");
-    public Thread LoopThread;
+    public AutoStopLoop LoopThread;
+    public AutoStopPlayerListener pListener;
+    public Permissions perms;
+    public PermissionHandler pHandler = null;
 
     public static void main(String[] args) throws Exception
     {
@@ -52,6 +58,22 @@ public class AutoStopPlugin extends JavaPlugin
     {
         PluginManager pluginManager = getServer().getPluginManager();
         BufferedWriter Writer = null;
+        pListener = new AutoStopPlayerListener(this);
+
+        try
+        {
+            if(pluginManager.getPlugin("Permissions").isEnabled())
+            {
+                perms = ((Permissions)pluginManager.getPlugin("Permissions"));
+                perms.setupPermissions();
+                pHandler = perms.getHandler();
+                Log.log(Level.INFO, "[AutoStop] Permissions " + perms.getDescription().getVersion() + " enabled for use.");
+            }
+        } catch(NullPointerException npe)
+        {
+            perms = null;
+            Log.log(Level.INFO, "[AutoStop] Permissions not enabled.");
+        }
 
         new File("AutoRestart.jar").delete();
         new File("plugins/AutoStop/").mkdir();
@@ -90,6 +112,8 @@ public class AutoStopPlugin extends JavaPlugin
                 e.printStackTrace();
             }
         }
+
+        pluginManager.registerEvent(Type.PLAYER_COMMAND_PREPROCESS, pListener, Priority.Normal, this);
 
         String stoptime, warntime, warnmsg, path;
         stoptime = warntime = warnmsg = path = "";
@@ -140,15 +164,15 @@ public class AutoStopPlugin extends JavaPlugin
 
 
 
-        LoopThread = new Thread(new AutoStopLoop(stoptime, warntime, warnmsg, enablerestart, path, this.getServer(), Log));
-        LoopThread.start();
+        LoopThread = new AutoStopLoop(stoptime, warntime, warnmsg, enablerestart, path, this.getServer(), Log);
+        new Thread(LoopThread).start();
 
         Log.log(Level.INFO, "[AutoStop] Started. Schedule for shutdown at " + stoptime);
     }
 
     public void onDisable()
     {
-        LoopThread.stop();
+        LoopThread.Running = false;
         Log.log(Level.INFO, "[AutoStop] Disabled.");
     }
 
@@ -160,7 +184,7 @@ class AutoStopLoop implements Runnable
     public Calendar Cal;
     public int StopHour, StopMinute, StopSecond, WarnMinute, WarnHour, WarnSecond;
     public String WarnMessage, Path;
-    public Boolean EnableRestart = false, Warned = false;
+    public Boolean EnableRestart = false, Warned = false, Running = true;
     public org.bukkit.Server MCServer;
     public Logger Log;
 
@@ -188,7 +212,7 @@ class AutoStopLoop implements Runnable
     {
         int hour, minute, second;
 
-        while(true)
+        while(Running)
         {
             Cal = Calendar.getInstance();
             hour = Cal.get(Calendar.HOUR_OF_DAY);
