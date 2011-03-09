@@ -20,18 +20,45 @@ public class AutoStopPlugin extends JavaPlugin
     public Logger Log = Logger.getLogger("Minecraft");
     public Thread LoopThread;
 
+    public static void main(String[] args) throws Exception
+    {
+        BufferedWriter Writer = null;
+        
+        new File("plugins/AutoStop/").mkdir();
+        if(!new File("plugins/AutoStop/autostop.properties").exists())
+        {
+            try
+            {
+                new File("plugins/AutoStop/autostop.properties").createNewFile();
+                Writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("plugins/AutoStop/autostop.properties")));
+                Writer.write("stoptime=12:00:00\r\n# Use 24-hour time. [Hour:Minute:Second]\r\n");
+                Writer.write("warntime=11:59:00\r\n# Displays warning message at this time. [Hour:Minute:Second]\r\n");
+                Writer.write("warnmsg=\r\n# Warning message to display.\r\n");
+                Writer.write("enablerestart=false\r\n# Enables automatic server restarts. If this is true, path must not be blank.\r\n");
+                Writer.write("path=\r\n# Path to server file (including any arguments). This can also be a command if you are using crontab/screen/etc.\r\n");
+                Writer.flush();
+                Writer.close();
+            }
+            catch(Exception e)
+            {
+                e.printStackTrace();
+            }
+        }
+
+        System.exit(0);
+    }
+
     public void onEnable()
     {
         PluginManager pluginManager = getServer().getPluginManager();
         BufferedWriter Writer = null;
 
-        /*
-        new File("plugins/AutoStop/AutoRestart.jar").delete();
+        new File("AutoRestart.jar").delete();
         new File("plugins/AutoStop/").mkdir();
         InputStream f1 = this.getClass().getResourceAsStream("/AutoRestart.jar");
         FileOutputStream f2 = null;
         try {
-             f2 = new FileOutputStream(new File("plugins/AutoStop/AutoRestart.jar"));
+             f2 = new FileOutputStream(new File("AutoRestart.jar")); // Has to be main bukkit dir
              byte[] buf = new byte[1024];
              int len;
              while ((len = f1.read(buf)) > 0){
@@ -41,7 +68,6 @@ public class AutoStopPlugin extends JavaPlugin
              f1.close();
              f2.close();
         } catch (Exception ex) { ex.printStackTrace(); }
-        */
 
         if(!new File("plugins/AutoStop/autostop.properties").exists())
         {
@@ -49,11 +75,11 @@ public class AutoStopPlugin extends JavaPlugin
             {
                 new File("plugins/AutoStop/autostop.properties").createNewFile();
                 Writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("plugins/AutoStop/autostop.properties")));
-                Writer.write("stoptime=12:00\r\n# Use 24-hour time. [Hour:Minute]\r\n");
-                Writer.write("warntime=11:59\r\n# Displays warning message at this time. [Hour:Minute]\r\n");
+                Writer.write("stoptime=12:00:00\r\n# Use 24-hour time. [Hour:Minute:Second]\r\n");
+                Writer.write("warntime=11:59:00\r\n# Displays warning message at this time. [Hour:Minute:Second]\r\n");
                 Writer.write("warnmsg=\r\n# Warning message to display.\r\n");
-                //Writer.write("enablerestart=false\r\n# Enables automatic server restarts. If this is true, path must not be blank.\r\n");
-                //Writer.write("path=\r\n# Path to server file (including any arguments). This can also be a command if you are using crontab/screen/etc.\r\n");
+                Writer.write("enablerestart=false\r\n# Enables automatic server restarts. If this is true, path must not be blank.\r\n");
+                Writer.write("path=\r\n# Path to server file (including any arguments). This can also be a command if you are using crontab/screen/etc.\r\n");
                 Writer.flush();
                 Writer.close();
                 Log.log(Level.INFO, "[AutoStop] autostop.properties created");
@@ -123,7 +149,7 @@ public class AutoStopPlugin extends JavaPlugin
     public void onDisable()
     {
         LoopThread.stop();
-        Log.log(Level.INFO, "[AutoStop] Disabled. Server will not shutdown at scheduled time.");
+        Log.log(Level.INFO, "[AutoStop] Disabled.");
     }
 
 }
@@ -132,7 +158,7 @@ class AutoStopLoop implements Runnable
 {
 
     public Calendar Cal;
-    public int StopHour, StopMinute, WarnMinute, WarnHour, WarnSecond;
+    public int StopHour, StopMinute, StopSecond, WarnMinute, WarnHour, WarnSecond;
     public String WarnMessage, Path;
     public Boolean EnableRestart = false, Warned = false;
     public org.bukkit.Server MCServer;
@@ -144,8 +170,10 @@ class AutoStopLoop implements Runnable
         this.MCServer = MCServer;
         this.StopHour = Integer.parseInt(stoptime.split(":")[0]);
         this.StopMinute = Integer.parseInt(stoptime.split(":")[1]);
+        this.StopSecond = Integer.parseInt(stoptime.split(":")[2]);
         this.WarnHour = Integer.parseInt(warntime.split(":")[0]);
         this.WarnMinute = Integer.parseInt(warntime.split(":")[1]);
+        this.WarnSecond = Integer.parseInt(warntime.split(":")[2]);
         this.WarnMessage = warnmsg;
         if(this.WarnMessage.trim().equals(""))
         {
@@ -167,13 +195,13 @@ class AutoStopLoop implements Runnable
             minute = Cal.get(Calendar.MINUTE);
             second = Cal.get(Calendar.SECOND);
 
-            if(WarnHour == hour && WarnMinute == minute && !Warned)
+            if(WarnHour == hour && WarnMinute == minute && WarnSecond == second && !Warned)
             {
                 MCServer.broadcastMessage(WarnMessage);
                 Warned = true;
             }
 
-            if(StopHour == hour && StopMinute == minute)
+            if(StopHour == hour && StopMinute == minute && StopSecond == second)
             {
                 Log.log(Level.INFO, "[AutoStop] Shutting down server.");
                 
@@ -187,7 +215,7 @@ class AutoStopLoop implements Runnable
                 {
                     try
                     {
-                        Process p = Runtime.getRuntime().exec("java -jar plugins/AutoStop/AutoRestart.jar " + Path);
+                        Process p = Runtime.getRuntime().exec("java -jar AutoRestart.jar " + Path);
                         Log.log(Level.INFO, "[AutoStop] Restarted server.");
                         System.exit(0);
                     } catch(Exception e){
@@ -201,7 +229,7 @@ class AutoStopLoop implements Runnable
 
             try
             {
-                Thread.sleep(5000); // 5 Seconds
+                Thread.sleep(500);
             }
             catch(Exception e){}
         }
