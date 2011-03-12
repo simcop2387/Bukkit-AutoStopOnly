@@ -1,14 +1,11 @@
 package net.hailxenu.serverautostop;
 
-import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.Scanner;
+import java.util.ArrayList;
 import java.io.*;
-import java.lang.Thread;
-
 
 import org.bukkit.event.Event.Priority;
 import org.bukkit.event.Event.Type;
@@ -98,7 +95,7 @@ public class AutoStopPlugin extends JavaPlugin
                 new File("plugins/AutoStop/autostop.properties").createNewFile();
                 Writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("plugins/AutoStop/autostop.properties")));
                 Writer.write("stoptime=12:00:00\r\n# Use 24-hour time. [Hour:Minute:Second]\r\n");
-                Writer.write("warntime=11:59:00\r\n# Displays warning message at this time. [Hour:Minute:Second]\r\n");
+                Writer.write("warntime=30\r\n# How many seconds before shutdown/restart to show warning. [Seconds]\r\n");
                 Writer.write("warnmsg=\r\n# Warning message to display.\r\n");
                 Writer.write("enablerestart=false\r\n# Enables automatic server restarts. If this is true, path must not be blank.\r\n");
                 Writer.write("path=\r\n# Path to server file (including any arguments). This can also be a command if you are using crontab/screen/etc.\r\n");
@@ -167,7 +164,8 @@ public class AutoStopPlugin extends JavaPlugin
         LoopThread = new AutoStopLoop(stoptime, warntime, warnmsg, enablerestart, path, this.getServer(), Log);
         new Thread(LoopThread).start();
 
-        Log.log(Level.INFO, "[AutoStop] Started. Schedule for shutdown at " + stoptime);
+        Log.log(Level.INFO, "AutoStop Enabled. " + System.getProperty("os.name"));
+        Log.log(Level.INFO, "[AutoStop] Scheduled for shutdown at time(s): " + stoptime);
     }
 
     public void onDisable()
@@ -182,7 +180,8 @@ class AutoStopLoop implements Runnable
 {
 
     public Calendar Cal;
-    public int StopHour, StopMinute, StopSecond, WarnMinute, WarnHour, WarnSecond;
+    public ArrayList<StopTime> StopTimes;
+    public int WarnTime;
     public String WarnMessage, Path;
     public Boolean EnableRestart = false, Warned = false, Running = true;
     public org.bukkit.Server MCServer;
@@ -192,12 +191,20 @@ class AutoStopLoop implements Runnable
             Boolean enablerestart, String path, org.bukkit.Server MCServer, Logger Log)
     {
         this.MCServer = MCServer;
-        this.StopHour = Integer.parseInt(stoptime.split(":")[0]);
-        this.StopMinute = Integer.parseInt(stoptime.split(":")[1]);
-        this.StopSecond = Integer.parseInt(stoptime.split(":")[2]);
-        this.WarnHour = Integer.parseInt(warntime.split(":")[0]);
-        this.WarnMinute = Integer.parseInt(warntime.split(":")[1]);
-        this.WarnSecond = Integer.parseInt(warntime.split(":")[2]);
+        this.StopTimes = new ArrayList<StopTime>();
+        String[] t;
+        for(String s : stoptime.split(" "))
+        {
+            try{
+                t = s.split(":");
+                StopTimes.add(new StopTime(Integer.parseInt(t[0]), Integer.parseInt(t[1]), Integer.parseInt(t[2])));
+            }catch(Exception e){}
+        }
+        int wm,ws;
+        wm = Integer.parseInt(warntime.split(":")[0]);
+        ws = Integer.parseInt(warntime.split(":")[1]);
+        ws += wm * 60;
+        WarnTime = ws;
         this.WarnMessage = warnmsg;
         if(this.WarnMessage.trim().equals(""))
         {
@@ -206,6 +213,21 @@ class AutoStopLoop implements Runnable
         this.EnableRestart = enablerestart;
         this.Path = path;
         this.Log = Log;
+    }
+
+    public void forceShutdown()
+    {
+        MCServer.broadcastMessage(WarnMessage);
+
+        try{
+            MCServer.savePlayers();
+                    for(org.bukkit.World w : MCServer.getWorlds())
+                    {
+                        w.save();
+                    }
+            Runtime.getRuntime().exec("java -jar AutoRestart.jar " + Path);
+            System.exit(0);
+        }catch(Exception e){}
     }
 
     public void run()
@@ -219,41 +241,43 @@ class AutoStopLoop implements Runnable
             minute = Cal.get(Calendar.MINUTE);
             second = Cal.get(Calendar.SECOND);
 
-            if(WarnHour == hour && WarnMinute == minute && WarnSecond == second && !Warned)
-            {
-                MCServer.broadcastMessage(WarnMessage);
-                Warned = true;
-            }
+            for(StopTime t : StopTimes){
 
-            if(StopHour == hour && StopMinute == minute && StopSecond == second)
-            {
-                Log.log(Level.INFO, "[AutoStop] Shutting down server.");
-                
-                MCServer.savePlayers();
-                for(org.bukkit.World w : MCServer.getWorlds())
+                if(t.doWarn(WarnTime))
                 {
-                    w.save();
+                    MCServer.broadcastMessage(org.bukkit.ChatColor.RED + WarnMessage);
                 }
 
-                if(EnableRestart)
+                if(t.isNow())
                 {
-                    try
+                    Log.log(Level.INFO, "[AutoStop] Shutting down server.");
+
+                    MCServer.savePlayers();
+                    for(org.bukkit.World w : MCServer.getWorlds())
                     {
-                        Process p = Runtime.getRuntime().exec("java -jar AutoRestart.jar " + Path);
-                        Log.log(Level.INFO, "[AutoStop] Restarted server.");
-                        System.exit(0);
-                    } catch(Exception e){
-                        Log.log(Level.WARNING, "[AutoStop] Exception while restarting server.");
-                        e.printStackTrace();
+                        w.save();
                     }
-                }
 
-                System.exit(0);
+                    if(EnableRestart)
+                    {
+                        try
+                        {
+                            Process p = Runtime.getRuntime().exec("java -jar AutoRestart.jar " + Path);
+                            Log.log(Level.INFO, "[AutoStop] Restarted server.");
+                            System.exit(0);
+                        } catch(Exception e){
+                            Log.log(Level.WARNING, "[AutoStop] Exception while restarting server.");
+                            e.printStackTrace();
+                        }
+                    }
+
+                    System.exit(0);
+                }
             }
 
             try
             {
-                Thread.sleep(500);
+                Thread.sleep(750);
             }
             catch(Exception e){}
         }
