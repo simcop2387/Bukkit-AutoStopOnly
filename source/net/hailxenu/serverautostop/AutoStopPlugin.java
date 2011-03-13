@@ -23,34 +23,6 @@ public class AutoStopPlugin extends JavaPlugin
     public Permissions perms;
     public PermissionHandler pHandler = null;
 
-    public static void main(String[] args) throws Exception
-    {
-        BufferedWriter Writer = null;
-        
-        new File("plugins/AutoStop/").mkdir();
-        if(!new File("plugins/AutoStop/autostop.properties").exists())
-        {
-            try
-            {
-                new File("plugins/AutoStop/autostop.properties").createNewFile();
-                Writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("plugins/AutoStop/autostop.properties")));
-                Writer.write("stoptime=12:00:00\r\n# Use 24-hour time. [Hour:Minute:Second]\r\n");
-                Writer.write("warntime=11:59:00\r\n# Displays warning message at this time. [Hour:Minute:Second]\r\n");
-                Writer.write("warnmsg=\r\n# Warning message to display.\r\n");
-                Writer.write("enablerestart=false\r\n# Enables automatic server restarts. If this is true, path must not be blank.\r\n");
-                Writer.write("path=\r\n# Path to server file (including any arguments). This can also be a command if you are using crontab/screen/etc.\r\n");
-                Writer.flush();
-                Writer.close();
-            }
-            catch(Exception e)
-            {
-                e.printStackTrace();
-            }
-        }
-
-        System.exit(0);
-    }
-
     public void onEnable()
     {
         PluginManager pluginManager = getServer().getPluginManager();
@@ -94,11 +66,11 @@ public class AutoStopPlugin extends JavaPlugin
             {
                 new File("plugins/AutoStop/autostop.properties").createNewFile();
                 Writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("plugins/AutoStop/autostop.properties")));
-                Writer.write("stoptime=12:00:00\r\n# Use 24-hour time. [Hour:Minute:Second]\r\n");
-                Writer.write("warntime=30\r\n# How many seconds before shutdown/restart to show warning. [Seconds]\r\n");
-                Writer.write("warnmsg=\r\n# Warning message to display.\r\n");
+                Writer.write("stoptime=12:00:00\r\n# Use 24-hour time. Seperate times with a space. [Hour:Minute:Second]\r\n");
+                Writer.write("warntime=0:30\r\n# How many seconds before shutdown/restart to show warning. Seperate times with a space.[Seconds]\r\n");
+                Writer.write("warnmsg=Shutting down server...\r\n# Warning message to display.\r\n");
                 Writer.write("enablerestart=false\r\n# Enables automatic server restarts. If this is true, path must not be blank.\r\n");
-                Writer.write("path=\r\n# Path to server file (including any arguments). This can also be a command if you are using crontab/screen/etc.\r\n");
+                Writer.write("path=java -jar craftbukkit.jar\r\n# Path to server file (including any arguments). This can also be a command if you are using crontab/screen/etc.\r\n");
                 Writer.flush();
                 Writer.close();
                 Log.log(Level.INFO, "[AutoStop] autostop.properties created");
@@ -180,7 +152,7 @@ class AutoStopLoop implements Runnable
 {
 
     public Calendar Cal;
-    public ArrayList<StopTime> StopTimes;
+    public ArrayList<StopTime> StopTimes, WarnTimes;
     public int WarnTime;
     public String WarnMessage, Path;
     public Boolean EnableRestart = false, Warned = false, Running = true;
@@ -192,6 +164,8 @@ class AutoStopLoop implements Runnable
     {
         this.MCServer = MCServer;
         this.StopTimes = new ArrayList<StopTime>();
+        this.WarnTimes = new ArrayList<StopTime>();
+        
         String[] t;
         for(String s : stoptime.split(" "))
         {
@@ -200,16 +174,21 @@ class AutoStopLoop implements Runnable
                 StopTimes.add(new StopTime(Integer.parseInt(t[0]), Integer.parseInt(t[1]), Integer.parseInt(t[2])));
             }catch(Exception e){}
         }
+
         int wm,ws;
-        wm = Integer.parseInt(warntime.split(":")[0]);
-        ws = Integer.parseInt(warntime.split(":")[1]);
-        ws += wm * 60;
-        WarnTime = ws;
+        for(String s : warntime.split(" "))
+        {
+            wm = Integer.parseInt(warntime.split(":")[0]);
+            ws = Integer.parseInt(warntime.split(":")[1]);
+            WarnTimes.add(new StopTime(0, wm, ws));
+        }
+
         this.WarnMessage = warnmsg;
         if(this.WarnMessage.trim().equals(""))
         {
             this.WarnMessage = "Scheduled shutdown started.";
         }
+
         this.EnableRestart = enablerestart;
         this.Path = path;
         this.Log = Log;
@@ -243,9 +222,11 @@ class AutoStopLoop implements Runnable
 
             for(StopTime t : StopTimes){
 
-                if(t.doWarn(WarnTime))
-                {
-                    MCServer.broadcastMessage(org.bukkit.ChatColor.RED + WarnMessage);
+                for(StopTime w : WarnTimes){
+                    if(t.doWarn(w))
+                    {
+                        MCServer.broadcastMessage(org.bukkit.ChatColor.RED + WarnMessage);
+                    }
                 }
 
                 if(t.isNow())

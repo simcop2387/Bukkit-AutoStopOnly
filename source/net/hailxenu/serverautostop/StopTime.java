@@ -25,8 +25,9 @@ public class StopTime {
         return false;
     }
 
-    public Boolean doWarn(int warnSec)
+    public Boolean doWarn(StopTime warn)
     {
+        int warnSec = warn.toSeconds();
         int h, m, s, wh, wm, ws;
         h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         m = Calendar.getInstance().get(Calendar.MINUTE);
@@ -47,5 +48,14 @@ public class StopTime {
             return true;
 
         return false;
+    }
+
+    public int toSeconds()
+    {
+        int s = 0;
+        s += Hour * 60 * 60;
+        s += Minute * 60;
+        s += Second;
+        return s;
     }
 }
