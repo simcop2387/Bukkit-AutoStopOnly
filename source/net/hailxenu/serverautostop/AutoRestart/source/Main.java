@@ -8,7 +8,7 @@ public class Main {
     
     public static void main(String[] args){
         try{
-        Thread.sleep(2500);
+        Thread.sleep(3500);
 
         String Path = "";
 

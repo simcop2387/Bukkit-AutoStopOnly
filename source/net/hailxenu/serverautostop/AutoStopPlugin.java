@@ -66,8 +66,8 @@ public class AutoStopPlugin extends JavaPlugin
             {
                 new File("plugins/AutoStop/autostop.properties").createNewFile();
                 Writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("plugins/AutoStop/autostop.properties")));
-                Writer.write("stoptime=12:00:00\r\n# Use 24-hour time. Seperate times with a space. [Hour:Minute:Second]\r\n");
-                Writer.write("warntime=0:30\r\n# How many seconds before shutdown/restart to show warning. Seperate times with a space.[Seconds]\r\n");
+                Writer.write("stoptime=12:00:00\r\n# Use 24-hour time. Separate times with a space. [Hour:Minute:Second]\r\n");
+                Writer.write("warntime=0:30\r\n# How many seconds before shutdown/restart to show warning. Separate times with a space.[Seconds]\r\n");
                 Writer.write("warnmsg=Shutting down server...\r\n# Warning message to display.\r\n");
                 Writer.write("enablerestart=false\r\n# Enables automatic server restarts. If this is true, path must not be blank.\r\n");
                 Writer.write("path=java -jar craftbukkit.jar\r\n# Path to server file (including any arguments). This can also be a command if you are using crontab/screen/etc.\r\n");
@@ -130,7 +130,6 @@ public class AutoStopPlugin extends JavaPlugin
             Log.log(Level.WARNING, "[AutoStop] Exception while reading autostop.properties");
             e.printStackTrace();
         }
-
 
 
         LoopThread = new AutoStopLoop(stoptime, warntime, warnmsg, enablerestart, path, this.getServer(), Log);
@@ -200,12 +199,19 @@ class AutoStopLoop implements Runnable
 
         try{
             MCServer.savePlayers();
-                    for(org.bukkit.World w : MCServer.getWorlds())
-                    {
-                        w.save();
-                    }
+            for(org.bukkit.World w : MCServer.getWorlds())
+            {
+                w.save();
+            }
+
+            for(org.bukkit.entity.Player p : MCServer.getOnlinePlayers())
+            {
+                p.kickPlayer("Server is shutting down...");
+            }
+
             Runtime.getRuntime().exec("java -jar AutoRestart.jar " + Path);
             System.exit(0);
+            
         }catch(Exception e){}
     }
 
@@ -243,13 +249,18 @@ class AutoStopLoop implements Runnable
                     {
                         try
                         {
-                            Process p = Runtime.getRuntime().exec("java -jar AutoRestart.jar " + Path);
+                            Runtime.getRuntime().exec("java -jar AutoRestart.jar " + Path);
                             Log.log(Level.INFO, "[AutoStop] Restarted server.");
                             System.exit(0);
                         } catch(Exception e){
-                            Log.log(Level.WARNING, "[AutoStop] Exception while restarting server.");
+                            Log.log(Level.WARNING, "[AutoStop] Error while restarting server.");
                             e.printStackTrace();
                         }
+                    }
+
+                    for(org.bukkit.entity.Player p : MCServer.getOnlinePlayers())
+                    {
+                        p.kickPlayer("Server is shutting down...");
                     }
 
                     System.exit(0);
