@@ -14,13 +14,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import com.nijiko.permissions.PermissionHandler;
 import com.nijikokun.bukkit.Permissions.Permissions;
+import org.bukkit.plugin.Plugin;
 
 public class AutoStopPlugin extends JavaPlugin
 {
     public Logger Log = Logger.getLogger("Minecraft");
     public AutoStopLoop LoopThread;
     public AutoStopPlayerListener pListener;
-    public Permissions perms;
     public PermissionHandler pHandler = null;
 
     public void onEnable()
@@ -33,14 +33,13 @@ public class AutoStopPlugin extends JavaPlugin
         {
             if(pluginManager.getPlugin("Permissions").isEnabled())
             {
-                perms = ((Permissions)pluginManager.getPlugin("Permissions"));
-                perms.setupPermissions();
-                pHandler = perms.getHandler();
-                Log.log(Level.INFO, "[AutoStop] Permissions " + perms.getDescription().getVersion() + " enabled for use.");
+                Plugin permissionsPlugin = this.getServer().getPluginManager().getPlugin("Permissions");
+                this.pHandler = ((Permissions) permissionsPlugin).getHandler();
+
+                Log.log(Level.INFO, "[AutoStop] Permissions " + permissionsPlugin.getDescription().getVersion() + " enabled for use.");
             }
         } catch(NullPointerException npe)
         {
-            perms = null;
             Log.log(Level.INFO, "[AutoStop] Permissions not enabled.");
         }
 
