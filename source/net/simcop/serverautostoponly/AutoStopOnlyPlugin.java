@@ -15,7 +15,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class AutoStopOnlyPlugin extends JavaPlugin
 {
     public Logger Log = Logger.getLogger("Minecraft");
-    public AutoStopPlayerListener pListener;
 
     public void onEnable()
     {
