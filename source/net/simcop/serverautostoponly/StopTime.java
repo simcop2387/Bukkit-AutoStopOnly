@@ -1,4 +1,4 @@
-package net.hailxenu.serverautostop;
+package net.simcop.serverautostoponly;
 
 import java.util.Calendar;
 
