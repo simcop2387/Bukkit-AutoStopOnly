@@ -16,13 +16,9 @@
 
     <target name="jar">
         <mkdir dir="build/jar"/>
-        <jar destfile="build/jar/AutoStop.jar" basedir="build/classes">
+        <jar destfile="build/jar/AutoStopOnly.jar" basedir="build/classes">
 		<zipfileset dir="source" includes="plugin.yml" prefix=""/>
         </jar>
-    </target>
-
-    <target name="run">
-        <java jar="build/jar/AutoStop.jar" fork="true"/>
     </target>
 
 </project>
