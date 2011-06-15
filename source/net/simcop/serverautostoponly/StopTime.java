@@ -4,13 +4,12 @@ import java.util.Calendar;
 
 public class StopTime {
 
-    public int Hour, Minute, Second;
+    public int Hour, Minute;
 
-    public StopTime(int h, int m, int s)
+    public StopTime(int h, int m)
     {
         this.Hour = h;
         this.Minute = m;
-        this.Second = s;
     }
 
     public Boolean isNow()
@@ -18,44 +17,38 @@ public class StopTime {
         int h, m, s;
         h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         m = Calendar.getInstance().get(Calendar.MINUTE);
-        s = Calendar.getInstance().get(Calendar.SECOND);
         
-        if(this.Hour == h && this.Minute == m && this.Second == s)
+        if(this.Hour == h && this.Minute == m)
             return true;
         return false;
     }
 
-    public Boolean doWarn(StopTime warn)
+    public Boolean doWarn(int warn)
     {
-        int warnSec = warn.toSeconds();
+        int timeuntil;
         int h, m, s, wh, wm, ws;
         h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         m = Calendar.getInstance().get(Calendar.MINUTE);
         s = Calendar.getInstance().get(Calendar.SECOND);
 
-        ws = warnSec % 60 + s;
-        wm = (ws/60) + m;
-        wh = (wm/60) + h;
+        /*
+         * making sure my sanity is correct
+         * We find out the current time, and subtract it from our target time, this tells us how many hours, how many minutes, how many seconds until then
+         * a negative number here is an underflow and means that we need to take it from the higher units, e.g. negative seconds come from minutes, negative minutes from hours
+         * the easiest way to do this is to scale them all to seconds and then add them all together, let the computer do it for us
+         *
+         * what this means is that any positive result is how many seconds we have until we get to the stop time
+         * a negative result means we have PASSED the stop time and we should ignore a warning (this case can happen when you have many restart times)
+         */
+        ws = /*this.second*/-s; // how many seconds until we stop, our seconds are always zero
+        wm = this.Minute - m; // how many minutes until we stop
+        wh = this.Hour - h; // how many hours until we stop
 
-        if(ws>60)
-            wm++;
-        if(wm>60)
-            wh++;
-        if(wh>23)
-            wh %= 24;
+        timeuntil = ws + (wm + wh * 60) * 60; // how many seconds
 
-        if(this.Hour == wh && this.Minute == wm && this.Second == ws)
+        if(timeuntil > 0 && timeuntil < warn) // if the time until is negative, we've passed it?
             return true;
 
         return false;
-    }
-
-    public int toSeconds()
-    {
-        int s = 0;
-        s += Hour * 60 * 60;
-        s += Minute * 60;
-        s += Second;
-        return s;
     }
 }

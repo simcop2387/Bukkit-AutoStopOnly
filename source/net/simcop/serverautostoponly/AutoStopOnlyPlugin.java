@@ -32,10 +32,10 @@ public class AutoStopOnlyPlugin extends JavaPlugin
           try {
             Config.createNewFile(); //creates the file zones.dat
             FileOutputStream out = new FileOutputStream(Config); //creates a new output steam needed to write to the file
-            prop.put("stoptime", "12:00:00");
+            prop.put("stoptime", "12:00");
             prop.put("warntime", "30");
             prop.put("warnmsg", "Shutting down the server");
-            prop.store(out, "'stoptime' uses 24-hour time. Separate times with a space. [Hour:Minute:Second]\r\n"+
+            prop.store(out, "'stoptime' uses 24-hour time. Separate times with a space. [Hour:Minute]\r\n"+
                             "'warntime' is how many seconds before shutdown/restart to show warning.\r\n" +
                             "'warnmsg' is what to tell users.");
             out.flush();  //Explained below in tutorial
@@ -49,7 +49,7 @@ public class AutoStopOnlyPlugin extends JavaPlugin
 
         String stoptime, warntime, warnmsg;
         //stoptime = warntime = warnmsg = "";
-        stoptime = "12:00:00";
+        stoptime = "12:00";
         warntime = "30";
         warnmsg = "Shutting down server...";
 
@@ -86,7 +86,7 @@ class AutoStopOnlyLoop implements Runnable
 {
 
     public Calendar Cal;
-    public ArrayList<StopTime> StopTimes, WarnTimes;
+    public ArrayList<StopTime> StopTimes;
     public int WarnTime;
     public String WarnMessage;
     public Boolean Warned = false, Running = true;
@@ -98,7 +98,6 @@ class AutoStopOnlyLoop implements Runnable
     {
         this.MCServer = MCServer;
         this.StopTimes = new ArrayList<StopTime>();
-        this.WarnTimes = new ArrayList<StopTime>();
         this.fakeperson = new FakeOp(MCServer);
         
         String[] t;
@@ -106,11 +105,11 @@ class AutoStopOnlyLoop implements Runnable
         {
             try{
                 t = s.split(":");
-                StopTimes.add(new StopTime(Integer.parseInt(t[0]), Integer.parseInt(t[1]), Integer.parseInt(t[2])));
+                StopTimes.add(new StopTime(Integer.parseInt(t[0]), Integer.parseInt(t[1])));
             }catch(Exception e){} // I don't like this, i may remove it or make it do a stack trace
         }
 
-        WarnTimes.add(new StopTime(0, 0, Integer.parseInt(warntime)));
+        WarnTime = Integer.parseInt(warntime);
 
         this.WarnMessage = warnmsg;
         if(this.WarnMessage.trim().equals(""))
@@ -139,22 +138,16 @@ class AutoStopOnlyLoop implements Runnable
 
     public void run()
     {
-        int hour, minute, second;
-
+        try {Thread.sleep(60000);} // sleep for one minute, hack around bug where it'd shut down constantly for a minute
+        catch(Exception e){}
+        
         while(Running)
         {
-            Cal = Calendar.getInstance();
-            hour = Cal.get(Calendar.HOUR_OF_DAY);
-            minute = Cal.get(Calendar.MINUTE);
-            second = Cal.get(Calendar.SECOND);
-
             for(StopTime t : StopTimes){
-
-                for(StopTime w : WarnTimes){
-                    if(t.doWarn(w))
-                    {
-                        MCServer.broadcastMessage(org.bukkit.ChatColor.RED + WarnMessage);
-                    }
+                if(!Warned && t.doWarn(WarnTime))
+                {
+                    Warned = true;
+                    MCServer.broadcastMessage(org.bukkit.ChatColor.RED + WarnMessage);
                 }
 
                 if(t.isNow())
@@ -165,7 +158,7 @@ class AutoStopOnlyLoop implements Runnable
 
             try
             {
-                Thread.sleep(750);
+                Thread.sleep(1000); // we don't need or want subsecond accuracy
             }
             catch(Exception e){}
         }
